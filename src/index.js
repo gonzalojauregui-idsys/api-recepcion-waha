@@ -8,7 +8,32 @@ const port = process.env.PORT || 8080;
 
 app.use(express.json({ limit: '16kb' }));
 
-app.post('/avisos', async (req, res) => {
+const { timingSafeEqual } = require('node:crypto');
+
+function autenticarApp(req, res, next) {
+    const esperada = process.env.RECEPCION_API_KEY;
+
+    if (!esperada) {
+        return res.status(500).json({
+            error: 'Falta configurar la autenticación',
+        });
+    }
+
+    const recibida = req.get('X-Api-Key') || '';
+
+    const a = Buffer.from(recibida);
+    const b = Buffer.from(esperada);
+
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        return res.status(401).json({
+            error: 'No autorizado',
+        });
+    }
+
+    next();
+}
+
+app.post('/avisos',autenticarApp, async (req, res) => {
     const { numero, mensaje } = req.body ?? {};
 
     const telefono = typeof numero === 'string'
