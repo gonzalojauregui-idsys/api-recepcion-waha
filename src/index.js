@@ -79,7 +79,15 @@ app.post('/avisos', async (req, res) => {
         });
     }
 });
-
+app.post('/webhook', async (req, res) => {
+    const body = req.body ?? {};
+    console.log('Webhook recibido', body);
+    return res.json({
+        ok: true,
+        mensaje: 'Mensaje recibido correctamente',
+    });
+    
+});
 app.listen(port, () => {
     console.log(
         `Servidor corriendo en http://localhost:${port}`
