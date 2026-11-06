@@ -6,6 +6,26 @@ const app = express();
 const axios = require('axios');
 const port = process.env.PORT || 8080;
 
+const { createServer } = require('node:http');
+const { WebSocketServer } = require('ws');
+const server = createServer(app);
+// Conexión persistente con Android
+const wss = new WebSocketServer({
+    server,
+    path: '/ws',
+});
+wss.on('connection', (socket) => {
+    console.log('App conectada');
+
+    socket.on('error', (error) => {
+        console.error('Error WebSocket:', error.message);
+    });
+
+    socket.on('close', () => {
+        console.log('App desconectada');
+    });
+});
+
 app.use(express.json({ limit: '16kb' }));
 
 
@@ -41,21 +61,21 @@ app.post('/avisos', async (req, res) => {
         : `${baseUrl}/api/sendText`;
 
     try {
-        // await axios.post(
-        //     url,
-        //     {
-        //         session,
-        //         chatId: `${telefono}@c.us`,
-        //         text: mensaje.trim(),
-        //     },
-        //     {
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //             'X-Api-Key': apiKey,
-        //         },
-        //         timeout: 15000,
-        //     }
-        // );
+        await axios.post(
+            url,
+            {
+                session,
+                chatId: `${telefono}@c.us`,
+                text: mensaje.trim(),
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': apiKey,
+                },
+                timeout: 15000,
+            }
+        );
 
         return res.json({
             ok: true,
@@ -80,12 +100,32 @@ app.post('/avisos', async (req, res) => {
     }
 });
 app.post('/webhook', async (req, res) => {
-    const body = req.body ?? {};
-    console.log('Webhook recibido', body);
-    return res.json({
-        ok: true,
-        mensaje: 'Mensaje recibido correctamente',
+    const { event, payload } = req.body ?? {};
+
+    if (event !== 'message' || payload?.fromMe) {
+        return res.json({ ok: true });
+    }
+
+    const mensaje = payload?.body;
+
+    if (typeof mensaje !== 'string' || !mensaje.trim()) {
+        return res.json({ ok: true });
+    }
+
+    // Este es el evento que espera tu app Android
+    const eventoPopup = JSON.stringify({
+        evento: 'mostrar_popup',
+        titulo: 'Mensaje recibido',
+        mensaje: mensaje,
     });
+
+    for (const socket of wss.clients) {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(eventoPopup);
+        }
+    }
+
+    return res.json({ ok: true });
     
 });
 app.listen(port, () => {
