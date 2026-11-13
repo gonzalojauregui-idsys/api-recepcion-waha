@@ -1,0 +1,74 @@
+const axios = require('axios');
+
+module.exports = (app) => {
+    app.post('/avisos', async (req, res) => {
+        const { numero, mensaje } = req.body ?? {};
+
+        const telefono = typeof numero === 'string'
+            ? numero.trim().replace(/^\+/, '').replace(/[\s()-]/g, '')
+            : '';
+
+        if (
+            !/^[1-9]\d{7,14}$/.test(telefono) ||
+            typeof mensaje !== 'string' ||
+            !mensaje.trim()
+        ) {
+            return res.status(400).json({
+                error: 'Enviá un número internacional y un mensaje válido',
+            });
+        }
+
+        const baseUrl = process.env.WAHA_URL?.trim().replace(/\/+$/, '');
+        const apiKey = process.env.WAHA_API_KEY;
+        const session = process.env.WAHA_SESSION || 'recepcion-ids';
+
+        if (!baseUrl || !apiKey) {
+            return res.status(500).json({
+                error: 'Falta configurar WAHA_URL o WAHA_API_KEY',
+            });
+        }
+
+        const url = baseUrl.endsWith('/api/sendText')
+            ? baseUrl
+            : `${baseUrl}/api/sendText`;
+
+        try {
+            await axios.post(
+                url,
+                {
+                    session,
+                    chatId: `${telefono}@c.us`,
+                    text: mensaje.trim(),
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Api-Key': apiKey,
+                    },
+                    timeout: 15000,
+                }
+            );
+
+            return res.json({
+                ok: true,
+                mensaje: 'Mensaje enviado correctamente',
+            });
+        } catch (error) {
+            const timeout =
+                error.code === 'ECONNABORTED' ||
+                error.code === 'ETIMEDOUT';
+
+            console.error('Error al llamar a WAHA', {
+                codigo: error.code,
+                status: error.response?.status,
+            });
+
+            return res.status(timeout ? 504 : 502).json({
+                error: timeout
+                    ? 'No se pudo confirmar el envío a tiempo'
+                    : 'No se pudo enviar el mensaje mediante WAHA',
+                statusWaha: error.response?.status,
+            });
+        }
+    });
+};

@@ -1,134 +1,22 @@
 require('dotenv').config();
 
 const express = require('express');
+const { createServer } = require('node:http');
+const configurarWebSocket = require('./websocket');
+const registrarAvisos = require('./routes/avisos.routes');
+const registrarWebhook = require('./routes/webhook.routes');
 
 const app = express();
-const axios = require('axios');
 const port = process.env.PORT || 8080;
-
-const { createServer } = require('node:http');
-const { WebSocketServer } = require('ws');
 const server = createServer(app);
-// Conexión persistente con Android
-const wss = new WebSocketServer({
-    server,
-    path: '/ws',
-});
-wss.on('connection', (socket) => {
-    console.log('App conectada');
-
-    socket.on('error', (error) => {
-        console.error('Error WebSocket:', error.message);
-    });
-
-    socket.on('close', () => {
-        console.log('App desconectada');
-    });
-});
+const wss = configurarWebSocket(server);
 
 app.use(express.json({ limit: '16kb' }));
 
+registrarAvisos(app);
+registrarWebhook(app, wss);
 
-app.post('/avisos', async (req, res) => {
-    const { numero, mensaje } = req.body ?? {};
-
-    const telefono = typeof numero === 'string'
-        ? numero.trim().replace(/^\+/, '').replace(/[\s()-]/g, '')
-        : '';
-
-    if (
-        !/^[1-9]\d{7,14}$/.test(telefono) ||
-        typeof mensaje !== 'string' ||
-        !mensaje.trim()
-    ) {
-        return res.status(400).json({
-            error: 'Enviá un número internacional y un mensaje válido',
-        });
-    }
-
-    const baseUrl = process.env.WAHA_URL?.trim().replace(/\/+$/, '');
-    const apiKey = process.env.WAHA_API_KEY;
-    const session = process.env.WAHA_SESSION || 'recepcion-ids';
-
-    if (!baseUrl || !apiKey) {
-        return res.status(500).json({
-            error: 'Falta configurar WAHA_URL o WAHA_API_KEY',
-        });
-    }
-
-    const url = baseUrl.endsWith('/api/sendText')
-        ? baseUrl
-        : `${baseUrl}/api/sendText`;
-
-    try {
-        await axios.post(
-            url,
-            {
-                session,
-                chatId: `${telefono}@c.us`,
-                text: mensaje.trim(),
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Api-Key': apiKey,
-                },
-                timeout: 15000,
-            }
-        );
-
-        return res.json({
-            ok: true,
-            mensaje: 'Mensaje enviado correctamente',
-        });
-    } catch (error) {
-        const timeout =
-            error.code === 'ECONNABORTED' ||
-            error.code === 'ETIMEDOUT';
-
-        console.error('Error al llamar a WAHA', {
-            codigo: error.code,
-            status: error.response?.status,
-        });
-
-        return res.status(timeout ? 504 : 502).json({
-            error: timeout
-                ? 'No se pudo confirmar el envío a tiempo'
-                : 'No se pudo enviar el mensaje mediante WAHA',
-            statusWaha: error.response?.status,
-        });
-    }
-});
-app.post('/webhook', async (req, res) => {
-    const { event, payload } = req.body ?? {};
-
-    if (event !== 'message' || payload?.fromMe) {
-        return res.json({ ok: true });
-    }
-
-    const mensaje = payload?.body;
-
-    if (typeof mensaje !== 'string' || !mensaje.trim()) {
-        return res.json({ ok: true });
-    }
-
-    // Este es el evento que espera tu app Android
-    const eventoPopup = JSON.stringify({
-        evento: 'mostrar_popup',
-        titulo: 'Mensaje recibido',
-        mensaje: mensaje,
-    });
-
-    for (const socket of wss.clients) {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(eventoPopup);
-        }
-    }
-
-    return res.json({ ok: true });
-    
-});
-app.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
     console.log(
         `Servidor corriendo en http://localhost:${port}`
     );
