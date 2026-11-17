@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recepción</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="app-header">
+    <h1 class="app-header__title">Recepción</h1>
+    <img class="app-header__logo" src="assets/logo_empresa.png" alt="Logo de la empresa">
+  </header>
+
+  <main class="reception-page">
+    <div class="page-intro">
+      <h2>Nuevo aviso</h2>
+      <p>Seleccioná un contacto y el motivo de la visita.</p>
+    </div>
+
+    <div class="reception-panel">
+      <section class="form-section" aria-labelledby="contact-heading">
+        <h3 id="contact-heading"><span class="section-number" aria-hidden="true">1</span> ¿A quién buscás?</h3>
+        <div id="contact-selector"></div>
+      </section>
+
+      <section class="form-section" aria-labelledby="reason-heading">
+        <h3 id="reason-heading"><span class="section-number" aria-hidden="true">2</span> Motivo de la visita</h3>
+        <p class="field-hint">Podés seleccionar más de una opción.</p>
+        <div id="chips-container"></div>
+      </section>
+
+      <section class="form-section" aria-labelledby="detail-heading">
+        <h3 id="detail-heading"><span class="section-number" aria-hidden="true">3</span> <label
+            for="detalle">Detalle</label><span class="optional-label">Opcional</span></h3>
+        <input type="text" id="detalle" placeholder="Agregá un detalle de la visita">
+      </section>
+
+
+      <div class="form-actions">
+        <button type="button" id="submit-button">Enviar aviso <span aria-hidden="true">→</span></button>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+  </script>
+</body>
+
+</html>
