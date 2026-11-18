@@ -51,6 +51,16 @@ const contacts =[
   { "id": 45, "name": "Ximena Poggi", "number": "5491156461371" }
 ]
 let selectedContactId = null;
+const successKey = 'recepcion.avisoEnviado';
+if (sessionStorage.getItem(successKey)) {
+  sessionStorage.removeItem(successKey);
+  const popup = document.createElement('div');
+  popup.className = 'success-popup';
+  popup.setAttribute('role', 'status');
+  document.body.append(popup);
+  popup.textContent = 'Enviado con éxito';
+  setTimeout(() => popup.remove(), 5000);
+}
 
 const contactSelector = ContactSelectorWithSearch({
   contacts,
@@ -78,6 +88,7 @@ document.getElementById('submit-button').addEventListener('click', async () => {
     const motivos = Array.from(selectedOptions).map(option => option).join(', ');
     const detalle = document.getElementById('detalle').value;
     const mensaje = `👋 ¡Hola! Tenés un mensaje desde la recepción.\n*Motivo/s:* ${motivos}\n*Detalle:* ${detalle}`;
+    
     try {
         const respuesta = await fetch('./avisos', {
             method: 'POST',
@@ -95,8 +106,11 @@ document.getElementById('submit-button').addEventListener('click', async () => {
         if (!respuesta.ok) {
             throw new Error(datos.error || 'No se pudo enviar el aviso');
         }
+        sessionStorage.setItem(successKey, '1');
+        window.location.reload();
 
-        alert(datos.mensaje);
+        
+        
     } catch (error) {
         alert(error.message);
     }

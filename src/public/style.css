@@ -334,3 +334,15 @@ p {
   color: #00A0C0;
 }
 
+.success-popup {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #006174;
+  color: white;
+}
+
